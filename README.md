@@ -1,16 +1,27 @@
-# ai_calc
+# AI Calculator / НейроКалькулятор
 
-A new Flutter project.
+Flutter-калькулятор для Android, где математика считается локальным парсером, а LLM объясняет результат с разным стилем.
 
-## Getting Started
+## Что уже реализовано (MVP stage 1-5)
 
-This project is a starting point for a Flutter application.
+- Новый экран калькулятора с keypad, результатом, AI-панелью и выбором режима.
+- Режимы: `normal`, `chaotic_ai`, `corporate_ai`, `philosopher`.
+- Арифметический движок с приоритетами, скобками и validation-ошибками.
+- `LlmService` abstraction + stream-based `MockLlmService`.
+- `PromptBuilder` (RU prompts, JSON schema).
+- `ModelManager` для выбора GGUF, сохранения ссылки и reset.
+- `ModelManager` для выбора GGUF, загрузки GGUF по URL, сохранения ссылки и reset.
+- `LlamaCppLlmService` на `llamadart` для локальной генерации через GGUF-модель.
 
-A few resources to get you started if this is your first Flutter project:
+## Запуск
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```bash
+flutter pub get
+flutter run -d android
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Тесты
+
+```bash
+flutter test
+```
