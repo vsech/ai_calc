@@ -377,7 +377,7 @@ ws ::= [ \t\n\r]*
   Map<String, dynamic>? _decodeAiResponseJson(String rawResponse) {
     final candidates = <String>[
       rawResponse.trim(),
-      if (_extractFirstJsonObject(rawResponse) case final extracted?) extracted,
+      ?_extractFirstJsonObject(rawResponse),
     ];
 
     for (final candidate in candidates) {
