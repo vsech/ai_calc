@@ -1,13 +1,8 @@
 import '../../llm/infrastructure/model_manager.dart';
 import '../domain/ai_calculator_mode.dart';
+import '../domain/calculator_interface_mode.dart';
 
-enum CalculatorStatus {
-  idle,
-  modelLoading,
-  ready,
-  generating,
-  error,
-}
+enum CalculatorStatus { idle, modelLoading, ready, generating, error }
 
 class CalculatorState {
   const CalculatorState({
@@ -16,6 +11,7 @@ class CalculatorState {
     required this.aiText,
     required this.status,
     required this.mode,
+    required this.interfaceMode,
     required this.errorMessage,
     required this.model,
     required this.confidence,
@@ -32,6 +28,7 @@ class CalculatorState {
       aiText: '',
       status: CalculatorStatus.idle,
       mode: AiCalculatorMode.normal,
+      interfaceMode: CalculatorInterfaceMode.lite,
       errorMessage: null,
       model: null,
       confidence: null,
@@ -47,6 +44,7 @@ class CalculatorState {
   final String aiText;
   final CalculatorStatus status;
   final AiCalculatorMode mode;
+  final CalculatorInterfaceMode interfaceMode;
   final String? errorMessage;
   final ModelDescriptor? model;
   final double? confidence;
@@ -64,6 +62,7 @@ class CalculatorState {
     String? aiText,
     CalculatorStatus? status,
     AiCalculatorMode? mode,
+    CalculatorInterfaceMode? interfaceMode,
     String? errorMessage,
     bool clearError = false,
     ModelDescriptor? model,
@@ -83,6 +82,7 @@ class CalculatorState {
       aiText: aiText ?? this.aiText,
       status: status ?? this.status,
       mode: mode ?? this.mode,
+      interfaceMode: interfaceMode ?? this.interfaceMode,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       model: clearModel ? null : (model ?? this.model),
       confidence: clearConfidence ? null : (confidence ?? this.confidence),

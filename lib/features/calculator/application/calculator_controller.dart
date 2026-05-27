@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../shared/errors/expression_evaluation_exception.dart';
 import '../../../shared/errors/llm_service_exception.dart';
@@ -11,6 +12,7 @@ import '../../llm/application/prompt_builder.dart';
 import '../../llm/infrastructure/model_manager.dart';
 import '../domain/ai_calculator_mode.dart';
 import '../domain/ai_calculator_result.dart';
+import '../domain/calculator_interface_mode.dart';
 import '../domain/expression_evaluator.dart';
 import 'calculator_state.dart';
 import 'dependency_providers.dart';
@@ -26,6 +28,9 @@ class CalculatorController extends Notifier<CalculatorState> {
 
   static const _modelRequiredMessage =
       'Модель не загружена. Выберите или скачайте GGUF.';
+  static const liteDefaultModelUrl =
+      'https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf';
+  static const _interfaceModeKey = 'calculator_interface_mode';
 
   static const _aiResultJsonGrammar = r'''
 root ::= object
@@ -86,6 +91,16 @@ ws ::= [ \t\n\r]*
 
   void setMode(AiCalculatorMode mode) {
     state = state.copyWith(mode: mode, clearError: true);
+  }
+
+  Future<void> setInterfaceMode(CalculatorInterfaceMode mode) async {
+    state = state.copyWith(interfaceMode: mode, clearError: true);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_interfaceModeKey, mode.wireName);
+  }
+
+  Future<void> downloadLiteDefaultModel() {
+    return downloadModelFromUrl(liteDefaultModelUrl);
   }
 
   Future<void> chooseModel() async {
@@ -204,9 +219,12 @@ ws ::= [ \t\n\r]*
 
   Future<void> evaluateAndExplain() async {
     await _streamSubscription?.cancel();
+    final useGeneratedAnswer =
+        state.interfaceMode == CalculatorInterfaceMode.lite;
     state = state.copyWith(
       status: CalculatorStatus.generating,
       aiText: '',
+      clearResult: useGeneratedAnswer,
       clearError: true,
       clearConfidence: true,
       clearMood: true,
@@ -216,7 +234,9 @@ ws ::= [ \t\n\r]*
       final correctValue = _expressionEvaluator.evaluate(state.expression);
       final correctResult = _formatNumber(correctValue);
       final shownResult = _applyModeResult(correctValue, state.mode);
-      state = state.copyWith(result: _formatNumber(shownResult));
+      if (!useGeneratedAnswer) {
+        state = state.copyWith(result: _formatNumber(shownResult));
+      }
 
       if (state.model == null || !state.isLlmInitialized) {
         state = state.copyWith(
@@ -246,7 +266,9 @@ ws ::= [ \t\n\r]*
           .listen(
             (chunk) {
               buffer.write(chunk);
-              state = state.copyWith(aiText: buffer.toString());
+              if (!useGeneratedAnswer) {
+                state = state.copyWith(aiText: buffer.toString());
+              }
             },
             onError: (Object error, StackTrace _) {
               state = state.copyWith(
@@ -265,7 +287,7 @@ ws ::= [ \t\n\r]*
                   errorMessage: 'Модель вернула невалидный JSON.',
                 );
               } else {
-                _applyAiResult(parsed);
+                _applyAiResult(parsed, useGeneratedAnswer: useGeneratedAnswer);
                 state = state.copyWith(status: CalculatorStatus.ready);
               }
               if (!completer.isCompleted) {
@@ -290,6 +312,7 @@ ws ::= [ \t\n\r]*
   }
 
   Future<void> _bootstrap() async {
+    await _loadInterfaceMode();
     state = state.copyWith(status: CalculatorStatus.modelLoading);
     final savedModel = await _modelManager.loadSavedModel();
 
@@ -316,6 +339,15 @@ ws ::= [ \t\n\r]*
 
     state = state.copyWith(model: savedModel);
     await _initializeLlm(savedModel.modelRef);
+  }
+
+  Future<void> _loadInterfaceMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = state.copyWith(
+      interfaceMode: CalculatorInterfaceMode.fromWireName(
+        prefs.getString(_interfaceModeKey),
+      ),
+    );
   }
 
   Future<void> _initializeLlm(String modelRef) async {
@@ -437,8 +469,12 @@ ws ::= [ \t\n\r]*
     return null;
   }
 
-  void _applyAiResult(AiCalculatorResult result) {
+  void _applyAiResult(
+    AiCalculatorResult result, {
+    required bool useGeneratedAnswer,
+  }) {
     state = state.copyWith(
+      result: useGeneratedAnswer ? result.explanation : null,
       aiText: result.explanation,
       confidence: result.confidence,
       mood: result.mood,
